@@ -494,10 +494,10 @@ class MCP2515():
             self.WriteBytes(CANCTRL, REQOP_NORMAL|CLKOUT_ENABLED)#set normal mode
                  
 
-    def Send(self, CAN_ID, CAN_TX_Buf):
+    def Send(self, CAN_ID, data):
         self.WriteBytes(TXB0CTRL, 0x00)  # Clear TXREQ
-        self.WriteBytes(TXB0SIDH, (id >> 3) & 0xFF)
-        self.WriteBytes(TXB0SIDL, (id << 5) & 0xE0)
+        self.WriteBytes(TXB0SIDH, (CAN_ID >> 3) & 0xFF)
+        self.WriteBytes(TXB0SIDL, (CAN_ID << 5) & 0xE0)
         self.WriteBytes(TXB0EID8, 0)
         self.WriteBytes(TXB0EID0, 0)
         length = len(data)
@@ -534,4 +534,5 @@ class MCP2515():
 
         id = (id_high << 3) | (id_low >> 5)
         return {'id': id, 'data': data}
+
 
