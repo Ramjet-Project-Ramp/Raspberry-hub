@@ -6,6 +6,6 @@ class SpiPressureSensor:
     
     def __init__(self, id, cs_pin):
         self.id = id
-        self.pin = cs_pin
-        self.ss = cs = machine.Pin(self.pin, machine.Pin.OUT)
-        self.ss.high()
+        self.cs_pin = cs_pin
+        self.cs = machine.Pin(self.cs_pin, machine.Pin.OUT)
+        self.cs.high()
