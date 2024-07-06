@@ -462,26 +462,15 @@ class MCP2515():
         self.Reset()
         time.sleep(0.1)
             
-        #set baud rate 125Kbps
-        #<7:6>SJW=00(1TQ)
-        #<5:0>BRP=0x03 (TQ=[2*(BRP+1)]/Fsoc=2*4/8M=1us)
-        #<5:0>BRP=0x03 (TQ=[2*(BRP+1)]/Fsoc=2*8/16M=1us)
-        # self.WriteBytes(CNF1, 7)      
-        # self.WriteBytes(CNF2,0x80|PHSEG1_3TQ|PRSEG_1TQ)       
-        # self.WriteBytes(CNF3,PHSEG2_3TQ)
+        #set baud rate 
         self.WriteBytes(CNF1, CAN_RATE[speed][0])
         self.WriteBytes(CNF2, CAN_RATE[speed][1])
         self.WriteBytes(CNF3, CAN_RATE[speed][2])       
 
         #set TXB0,TXB1
-        #<15:5> SID 11bit canid
-        #<BIT3> exide,1:extended 0:standard
         self.WriteBytes(TXB0SIDH,0xFF)
         self.WriteBytes(TXB0SIDL,0xE0)
         self.WriteBytes(TXB0DLC,0x40|DLC_8)
-        # self.WriteBytes(TXB1SIDH,0x50)
-        # self.WriteBytes(TXB1SIDL,0x00)
-        # self.WriteBytes(TXB1DLC,0x40 | DLC_8)    #Set DLC = 3 bytes and RTR bit*/
 
         #Set RX
         self.WriteBytes(RXB0SIDH,0x00)
@@ -505,7 +494,7 @@ class MCP2515():
             self.WriteBytes(CANCTRL, REQOP_NORMAL|CLKOUT_ENABLED)#set normal mode
                  
 
-    def Send(self, CAN_ID, CAN_TX_Buf, length1):
+    def Send(self, CAN_ID, CAN_TX_Buf):
         self.WriteBytes(TXB0CTRL, 0x00)  # Clear TXREQ
         self.WriteBytes(TXB0SIDH, (id >> 3) & 0xFF)
         self.WriteBytes(TXB0SIDL, (id << 5) & 0xE0)
@@ -545,3 +534,4 @@ class MCP2515():
 
         id = (id_high << 3) | (id_low >> 5)
         return {'id': id, 'data': data}
+
