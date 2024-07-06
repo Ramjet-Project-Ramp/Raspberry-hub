@@ -430,7 +430,7 @@ class MCP2515():
         self.spi = spi
         self.cs = Pin(cs_pin,Pin.OUT)
         
-    def ReadByte(self, addr):
+    def ReadByte(self, address):
         self.cs.value(0)
         self.spi.write(bytearray([CAN_READ, address]))
         value = self.spi.read(1)[0]
