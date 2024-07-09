@@ -2,7 +2,8 @@ import machine
 
 
 class Thermistor:
-    def __init__(self, referenceVoltage, referenceResistor, adc_pin):
+    def __init__(self, id, referenceVoltage, referenceResistor, adc_pin):
+        self.id = id
         self.referenceVoltage = referenceVoltage
         self.referenceResistor = referenceResistor
         self.adc = machine.ADC(adc_pin)

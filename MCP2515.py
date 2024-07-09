@@ -1,5 +1,7 @@
 from machine import Pin,SPI,PWM
 import time
+from collections import namedtuple
+
 
 ## Configuration Registers */
 CANSTAT      = 0x0E
@@ -424,6 +426,7 @@ yRXFlag=0
 Com_RecBuff = [0, 0, 0, 0, 0, 0, 0, 0] #8
 
 
+CANMessage = namedtuple('CANMessage', ['id', 'data'])
 
 class MCP2515():
     def __init__(self, spi, cs_pin):
@@ -532,7 +535,6 @@ class MCP2515():
         # Clear interrupt flag
         self.SetBitModify(CANINTF, RX0IF, 0)
 
-        id = (id_high << 3) | (id_low >> 5)
-        return {'id': id, 'data': data}
-
+        id = (id_high << 3) | (id_low >> 5) 
+        return CANMessage(id=id, data=data)
 
