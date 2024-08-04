@@ -32,6 +32,7 @@ hub2 = Hub(id=2, measureAllId=21, getMeasurentId=22, numberOfPressureSensors=3, 
 hub3 = Hub(id=3, measureAllId=31, getMeasurentId=32, numberOfPressureSensors=3, getThermistorAdcReadingId = 33, numberOfThermistors = 1, getRaspberryThermistorAdcReadingId = 34)
 
 hubs = [hub2]
+
 # *****************SAMPLIG RATE*****************
 pressure_sensor_sampling_rate = 5 # [Hz]
 thermistor_sampling_rate = 20 # [Hz]
@@ -40,6 +41,7 @@ accelerometer_sampling_rate = 5 # [Hz]
 lastPressureSensorMeasurmentTime = time.time_ns()
 lastThermistorMeasurmentTime = time.time_ns()
 lastAccelerometerMeasurmentTime = time.time_ns()
+
 # *****************GET THERMISTORS DATA*****************
 def getThermistorData(can, canId)
     can.ReadMessage() # CLEAN BUFFER
@@ -55,6 +57,12 @@ def getThermistorData(can, canId)
         message = can.ReadMessage()
         
     return message
+
+# *****************HIGH G ACCELEROMETER*****************
+
+
+# *****************LOW G ACCELEROMETER*****************
+
 
 # *****************MAIN LOOP*****************
 while(True):
