@@ -1,7 +1,13 @@
-from machine import Pin,SPI,PWM
+from machine import Pin, SPI, PWM, I2C
 import time
 from MCP2515 import MCP2515
 from Hub import Hub
+from ADXL375_HIGH_G import ADXL375_I2C
+from BMX160_LOW_G import BMX160
+from SpiPressureSensor import SpiPressureSensor
+from PressureSensorsInHub import PressureSensorsInHub
+from Thermistor import Thermistor
+from sdcard import SDCard
 
 # *****************DEBUG MODE*****************
 debug = True 
@@ -59,9 +65,58 @@ def getThermistorData(can, canId)
     return message
 
 # *****************HIGH G ACCELEROMETER*****************
+i2c = I2C(0, scl=Pin(13), sda=Pin(12), freq=400000)
 
+adxl375 = ADXL375_I2C(i2c)
 
 # *****************LOW G ACCELEROMETER*****************
+bmx160 = BMX160(i2c)
+trim_data = bmx160.trim_data
+
+# *****************PRESSURE SENSORS*****************
+spi_pressure_sensor = machine.SPI(0, baudrate=800000, polarity=0, phase=0,
+                  sck=Pin(18),
+                  mosi=Pin(19),
+                  miso=Pin(16))
+
+paSensor = SpiPressureSensor(id=12, cs_pin=21) # Out Tank A1
+pSensor1 = SpiPressureSensor(id=13, cs_pin=17) # In Tank G1
+pSensor2 = SpiPressureSensor(id=14, cs_pin=20) # In Tank G2
+
+pressureSensorsInHub = PressureSensorsInHub(spi_pressure_sensor,
+                                            pressureSensors=[paSensor, pSensor1, pSensor2])
+
+# *****************THERMISTORS*****************
+thermistor1 = Thermistor(id=3, adc_pin=28)
+
+thermistors = [thermistor1]
+thermistors_length = len(thermistors)
+
+# *****************SD CARD*****************
+spi_sdcard = machine.SPI(0, baudrate=1000000, polarity=0, phase=0, sck=Pin(2), mosi=Pin(3), miso=Pin(4))
+
+sd = sdcard.SDCard(spi_sdcard, cs=machine.Pin(5), baudrate=20000000)
+os.mount(sd, '/sd')
+
+i = 0
+fileName = ""
+while True:
+    try:
+        fileName = "sd/data"+str(i)+".csv"
+        open(fileName, "x")
+        break
+    except:
+        i+=1
+
+file = open(fileName, "w")
+
+titleBlock = "Pressure_time[ns]"
+numberOfPressurreSensors = 27
+
+for i in range(numberOfPressurreSensors):
+    id = i+1
+    titleBlock += ",pressure" + str(id) + "[counts]" + ",sensor_temperature" + str(id) + "[counts]" 
+
 
 
 # *****************MAIN LOOP*****************
@@ -140,8 +195,14 @@ while(True):
                         temp = data[2] + data[1] * 256 #ADC READING
                         
         # ACCELEROMETER MEASUREMNT-----------------------------------------------------------------
-        if time.time_ns() - lastThermistorMeasurmentTime > (1/accelerometer_sampling_rate)*1e9:
+        if time.time_ns() - lastAccelerometerMeasurmentTime > (1/accelerometer_sampling_rate)*1e9:
             lastAccelerometerMeasurmentTime = time.time_ns()
+            
+            acc_high_g_x, acc_high_g_y, acc_high_g_z = adxl375.read_accel_data()
+            
+            acc_low_g_x, acc_low_g_y, acc_low_g_z = bmx160.read_accel_data()        
+            gyr_low_g_x, gyr_low_g_y, gyr_low_g_z = bmx160.read_gyro_data()
+            mag_low_g_x, mag_low_g_y, mag_low_g_z, r_hall_low_g = bmx160.read_mag_data()
           
           
             

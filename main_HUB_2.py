@@ -24,7 +24,7 @@ time.sleep(1)
 led_pin(1)
 
 # *****************CAN*****************
-spi_can = SPI(0,1000000,polarity=0, phase=0,sck=Pin(6),mosi=Pin(7),miso=Pin(4))
+spi_can = SPI(0,baudrate=1000000,polarity=0, phase=0,sck=Pin(6),mosi=Pin(7),miso=Pin(4))
 can = MCP2515(spi_can, cs_pin = 8)
 
 can.Init(speed="500KBPS")
