@@ -23,8 +23,8 @@ class PressureSensorsInHub:
             self.spi.write_readinto(SpiPressureSensor.data_command, data)
             sensor.cs.high()
         
-            press_counts = data[3] + data[2] * 256 + data[1] * 65536  # calculate digital pressure counts
-            temp_counts = data[6] + data[5] * 256 + data[4] * 65536   # calculate digital temperature counts
+            #press_counts = data[3] + data[2] * 256 + data[1] * 65536  # calculate digital pressure counts
+            #temp_counts = data[6] + data[5] * 256 + data[4] * 65536   # calculate digital temperature counts
             
             measurement = [sensor.id, data[1], data[2], data[3], data[4], data[5], data[6]]
             
