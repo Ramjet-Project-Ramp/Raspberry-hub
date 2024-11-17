@@ -9,17 +9,18 @@
                            
 
 from machine import Pin, SPI, PWM, I2C
-import time
-from MCP2515 import MCP2515
 from Hub import Hub
+from MCP2515 import MCP2515
 from ADXL375_High_G import ADXL375_I2C
 from BMX160_Low_G import BMX160
 from SpiPressureSensor import SpiPressureSensor
 from PressureSensorsInHub import PressureSensorsInHub
 from Thermistor import Thermistor
 from sdcard import SDCard
+from BinaryFile import BinaryFile
 import os
 import sys
+import time
 
 # *****************DEBUG MODE*****************
 debug = True 
@@ -45,11 +46,23 @@ can = MCP2515(spi, cs_pin=13)
 
 can.Init(speed="500KBPS")
 
-# *****************HUBs*****************
-hub2 = Hub(id=2, measureAllId=21, getMeasurentId=22, numberOfPressureSensors=4, getThermistorAdcReadingId = 23, numberOfThermistors = 1, getRaspberryThermistorAdcReadingId = 24)
-hub3 = Hub(id=3, measureAllId=31, getMeasurentId=32, numberOfPressureSensors=2, getThermistorAdcReadingId = 33, numberOfThermistors = 1, getRaspberryThermistorAdcReadingId = 34)
+def waitForCanMessage(waitMaxTimeInNs = 0.002*1e9):
+    message = can.ReadMessage()
+    
+    timeSinceSendingMessage = time.time_ns()
+    while message == None:
+        if time.time_ns() - timeSinceSendingMessage > waitMaxTimeInNs:
+            break
+        message = can.ReadMessage()
+        
+    return message
 
-hubs = [hub2, hub3]
+# *****************HUBs*****************
+hub2 = Hub(id=2, measureAllId=21, getMeasurentId=22, numberOfPressureSensors=10, getThermistorAdcReadingId = 23, numberOfThermistors = 4)
+hub3 = Hub(id=3, measureAllId=31, getMeasurentId=32, numberOfPressureSensors=12, getThermistorAdcReadingId = 33, numberOfThermistors = 4)
+hub4 = Hub(id=4, measureAllId=41, getMeasurentId=42, numberOfPressureSensors=7, getThermistorAdcReadingId = 43, numberOfThermistors = 4)
+
+hubs = [hub2, hub3, hub4]
 
 # *****************SAMPLIG RATE*****************
 pressure_sensor_sampling_rate = 20 # [Hz]
@@ -66,14 +79,9 @@ def getThermistorData(can, canId, sensorNumber):
     can.ReadMessage() # CLEAN BUFFER
     # TAKE THERMISTOR MEASUREMENT 
     can.Send(canId, [sensorNumber])
-    message = can.ReadMessage()
     
     # WAIT FOR THERMISTOR READING MESSAGE TO ARIVE
-    timeSinceSendingMessage = time.time_ns()
-    while message == None:
-        if time.time_ns() - timeSinceSendingMessage > 0.007*1e9:
-            break
-        message = can.ReadMessage()
+    message = waitForCanMessage()
         
     return message
 
@@ -93,18 +101,24 @@ spi_pressure_sensor = machine.SPI(0, baudrate=800000, polarity=0, phase=0,
                   mosi=Pin(3),
                   miso=Pin(16))
 pressureSensors = []
-pressureSensors.append(SpiPressureSensor(id=1, cs_pin=14)) # Out Tank A1
-pressureSensors.append(SpiPressureSensor(id=2, cs_pin=15)) # In Tank G1
-#pSensor2 = SpiPressureSensor(id=14, cs_pin=20) # In Tank G2
+pressureSensors.append(SpiPressureSensor(id=1, cs_pin=22)) # Out Tank A1
+pressureSensors.append(SpiPressureSensor(id=2, cs_pin=21)) # In Tank G1
+pressureSensors.append(SpiPressureSensor(id=3, cs_pin=20))
+pressureSensors.append(SpiPressureSensor(id=4, cs_pin=19))
+pressureSensors.append(SpiPressureSensor(id=10, cs_pin=18))
+pressureSensors.append(SpiPressureSensor(id=11, cs_pin=15))
 
 pressureSensorsInHub = PressureSensorsInHub(spi_pressure_sensor,
                                             pressureSensors)
+pressureSensorDataSize = const(6) #[Bytes]
 
 # *****************THERMISTORS*****************
-thermistor1 = Thermistor(id=1, adc_pin=26)
+thermistor1 = Thermistor(id=1, adc_pin=4)
 
 thermistors = [thermistor1]
 thermistors_length = len(thermistors)
+
+thermistorSensorDataSize = const(2) #[Bytes]
 
 # *****************SD CARD*****************
 spi_sdcard = machine.SPI(0, baudrate=2000000, polarity=0, phase=0,
@@ -118,62 +132,12 @@ os.mount(sd, '/sd')
 flush_sampling_rate = 0.1 # [Hz]
 lastFlushTime = time.time_ns()
 
-i = 0
-fileName = ""
-while True:
-    try:
-        fileName = "sd/data"+str(i)+".csv"
-        open(fileName, "x")
-        break
-    except:
-        i+=1
-
-file = open(fileName, "w")
-files = os.listdir("/sd")
-
-titleBlock = "Measurment_id(1),Pressure_time[ns]"
-numberOfPressurreSensors = 27
-
-for i in range(numberOfPressurreSensors):
-    id = i+1
-    titleBlock += ",pressure" + str(id) + "[counts]" + ",sensor_temperature" + str(id) + "[counts]"
-    
-pressureDataBlock = ["-"]*numberOfPressurreSensors
-pressureSensorTemperatureDataBlock = ["-"]*numberOfPressurreSensors
-
-numberOfThermistorSensors = 10
-numberOfRaspberyThermistors = 3
-
-titleBlock += "\nMeasurment_id(2),Thermistor_time[ns]"
-
-for i in range(numberOfRaspberyThermistors):
-    id = i+1
-    titleBlock += ",Raspberry_temperature" + str(id) + "[counts]"
-
-for i in range(numberOfThermistorSensors):
-    id = i+1
-    titleBlock += ",temperature" + str(id) + "[counts]"
-        
-
-thermistorDataBlock = ["-"]*(numberOfThermistorSensors+numberOfRaspberyThermistors)        
-    
-titleBlock += "\nMeasurment_id(3),Acceleromiter_time[ns],acceleration_high_g_x[counts],acceleration_high_g_y[counts],acceleration_high_g_z[counts]"
-
-titleBlock += "acceleration_low_g_x[counts],acceleration_low_g_y[counts],acceleration_low_g_z[counts],gyroscope_low_g_x[counts],gyroscope_low_g_y[counts],gyroscope_low_g_z[counts],magnetometer_low_g_x[counts],magnetometer_low_g_y[counts],magnetometer_low_g_z[counts],magnetometer_r_hall[counts]"
-
-acceleromiterDataBlok = ["-"]*13
-
-file.write(titleBlock)
-#file.flush()
+file = BinaryFile(sd=sd ,numberOfPressurreSensors=35, numberOfThermistorSensors=13)
 
 # *****************MAIN LOOP*****************
 last_time = time.time_ns()
 while(True):
     try:
-        
-        writeRate = 1/((time.time_ns() - last_time)*1e-9)
-        last_time = time.time_ns()
-        print(writeRate)
         # FLUSH SD CARD-----------------------------------------------------------------
         if time.time_ns() - lastFlushTime > (1/flush_sampling_rate)*1e9:
             lastFlushTime = time.time_ns()
@@ -197,13 +161,8 @@ while(True):
                 # TAKE PRESSURE MEASUREMENT FROM ALL SENSORS
                 can.Send(hub.measureAllId, [])
                 
-                message = can.ReadMessage()
                 # WAIT FOR CONFIRMATION MESSAGE TO ARIVE
-                timeSinceSendingMessage = time.time_ns()
-                while message == None:
-                    if time.time_ns() - timeSinceSendingMessage > 0.007*1e9:
-                        break
-                    message = can.ReadMessage()
+                message = waitForCanMessage()
 
                 # CHECK CONFIRMATION MESSAGE
                 if message != None and message.id == 1 and message.data[0] == hub.id and message.data[1] == 1:
@@ -215,70 +174,37 @@ while(True):
             for i in range(pressureSensorsInHub.numberOfSensors):
                 data = pressureSensorsInHub.getMeasurement(i)
                 sensor_id = data[0]
-                press_counts = data[3] + data[2] * 256 + data[1] * 65536  # calculate digital pressure counts
-                temp_counts = data[6] + data[5] * 256 + data[4] * 65536   # calculate digital temperature counts
-                
-                pressureDataBlock[sensor_id-1] = press_counts
-                pressureSensorTemperatureDataBlock[sensor_id-1] = temp_counts
+                file.addPressureData(id=sensor_id, data = data[1:1+pressureSensorDataSize])
                 
             # GET READINGS FROM ALL PRESSURE SENSORS FROM OTHER HUBS
             for hub in confirmedHubs:                
                 for i in range(hub.numberOfPressureSensors):
                     can.ReadMessage() # CLEAN BUFFER
-                    can.Send(hub.getMeasurentId, [i]) 
-                    message = can.ReadMessage()
+                    can.Send(hub.getMeasurentId, [i])
                     
                     # WAIT FOR PREASURE READING MESSAGE TO ARIVE
-                    timeSinceSendingMessage = time.time_ns()
-                    while message == None:
-                        if time.time_ns() - timeSinceSendingMessage > 0.007*1e9:
-                            break
-                        message = can.ReadMessage()
+                    message = waitForCanMessage()
                         
                     # CHECK PRESSURE READING    
                     if message != None and message.id == 2 and message.data[0] != 0 and len(message.data) == 7:
                         data = message.data
                         sensor_id = data[0]
-                        press_counts = data[3] + data[2] * 256 + data[1] * 65536  # calculate digital pressure counts
-                        temp_counts = data[6] + data[5] * 256 + data[4] * 65536   # calculate digital temperature counts
                         
-                        pressureDataBlock[sensor_id-1] = press_counts
-                        pressureSensorTemperatureDataBlock[sensor_id-1] = temp_counts
-                        
+                        file.addPressureData(id=sensor_id, data = data[1:1+pressureSensorDataSize])      
             
-            data_line = "\n1,"+str(lastPressureSensorMeasurmentTime)
-            for i in range(numberOfPressurreSensors):
-                data_line += ","+str(pressureDataBlock[i])+","+str(pressureSensorTemperatureDataBlock[i])
-            #print(data_line)
-            file.write(data_line)
+            file.savePressureData(time=lastPressureSensorMeasurmentTime)
         
                     
         # THERMISTOR MEASUREMNT-----------------------------------------------------------------
         if time.time_ns() - lastThermistorMeasurmentTime > (1/thermistor_sampling_rate)*1e9:
             lastThermistorMeasurmentTime = time.time_ns()
             
-            # GET RASPBERRY THERMISTOR READING IN HUB1
-            adc_value = machine.ADC(4).read_u16()
-            #data = split_number_into_bytes(adc_value, 2)
-            thermistorDataBlock[0] = adc_value
-            
             # GET READINGS FROM ALL THERMISTORS IN HUB1
             for thermistor in thermistors:
                 adc_value = thermistor.readAdc()
-                #data = split_number_into_bytes(adc_value, 2)
-                thermistorDataBlock[thermistor.id-1+numberOfRaspberyThermistors] = adc_value
+                file.addThermistorData(id=thermistor.id, temprature=adc_value.to_bytes(thermistorSensorDataSize, byteorder='big'))
             
-            for hub in hubs:
-                # GET RASPBERRY THERMISTOR READING
-                message = getThermistorData(can, hub.getRaspberryThermistorAdcReadingId, 0)
-                        
-                # CHECK RASPBERRY THERMISTOR READING
-                if message != None and message.id == 4 and message.data[0] != 0 and len(message.data) == 2:
-                    data = message.data
-                    temp = data[1] + data[0] * 256 # RASPBERRY ADC READING
-                    
-                    thermistorDataBlock[hub.id-1] = temp
-                
+            for hub in hubs:   
                 # GET READINGS FROM ALL THERMISTORS
                 for i in range(hub.numberOfThermistors):
                     message = getThermistorData(can, hub.getThermistorAdcReadingId, i)
@@ -287,37 +213,50 @@ while(True):
                     if message != None and message.id == 3 and message.data[0] != 0 and len(message.data) == 3:
                         data = message.data
                         sensor_id = data[0]
-                        temp = data[2] + data[1] * 256 #ADC READING
                         
-                        thermistorDataBlock[sensor_id-1+numberOfRaspberyThermistors] = temp
+                        file.addThermistorData(id=sensor_id, temprature=data[1:1+thermistorSensorDataSize])
                   
             # SAVING DATA TO FILE      
-            data_line = "\n2,"+str(lastThermistorMeasurmentTime)
-            for data in thermistorDataBlock:
-                data_line += ","+str(data)
-            #print(data_line)
-            file.write(data_line)
+            file.saveThermistorData(time=lastThermistorMeasurmentTime)
                         
                         
         # ACCELEROMETER MEASUREMNT-----------------------------------------------------------------
         if time.time_ns() - lastAccelerometerMeasurmentTime > (1/accelerometer_sampling_rate)*1e9:
             lastAccelerometerMeasurmentTime = time.time_ns()
             
-            acc_high_g_x, acc_high_g_y, acc_high_g_z = adxl375.read_accel_data()
             
-            acc_low_g_x, acc_low_g_y, acc_low_g_z = bmx160.read_accel_data()        
-            gyr_low_g_x, gyr_low_g_y, gyr_low_g_z = bmx160.read_gyro_data()
-            mag_low_g_x, mag_low_g_y, mag_low_g_z, r_hall_low_g = bmx160.read_mag_data()
+            # READ LOW G ACCELEROMETER READING
+            can.ReadMessage() # CLEAN BUFFER
+            can.Send(45, [1])
+            lowG_accelerometer_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
             
-            data_line = "\n3,"+str(lastAccelerometerMeasurmentTime)
-            data_line +=  ","+str(acc_high_g_x) + ","+str(acc_high_g_y) + "," +str(acc_high_g_z)
-            data_line +=  ","+str(acc_low_g_x)  + ","+str(acc_low_g_y) + "," +str(acc_low_g_z)
-            data_line +=  ","+str(gyr_low_g_x)  + ","+str(gyr_low_g_y) + "," +str(gyr_low_g_z)
-            data_line +=  ","+str(mag_low_g_x)  + ","+str(mag_low_g_y) + "," +str(mag_low_g_z) + "," +str(r_hall_low_g)
-            #print(data_line)
-            file.write(data_line)
-          
-          
+            # READ LOW G GYRO READING
+            can.ReadMessage() # CLEAN BUFFER
+            can.Send(45, [2])
+            lowG_gyro_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            
+            # READ LOW G MAGNETO READING
+            can.ReadMessage() # CLEAN BUFFER
+            can.Send(45, [3])
+            lowG_mag_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+           
+            # READ HIGH G ACCELEROMETER READING
+            can.ReadMessage() # CLEAN BUFFER
+            can.Send(45, [4])
+            highG_accelerometer_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+           
+           
+           file.addAcceleromiterData(low_G_acceleration=lowG_accelerometer_data,
+                                     low_G_gyro=lowG_gyro_data,
+                                     low_G_magnetometer=lowG_mag_data,
+                                     high_G_acceleration=highG_accelerometer_data)
+           
+           file.saveAccelerometerData(time=lastAccelerometerMeasurmentTime)
+            #acc_low_g_x, acc_low_g_y, acc_low_g_z = bmx160.read_accel_data()        
+            #gyr_low_g_x, gyr_low_g_y, gyr_low_g_z = bmx160.read_gyro_data()
+            #mag_low_g_x, mag_low_g_y, mag_low_g_z, r_hall_low_g = bmx160.read_mag_data()
+            
+            #acc_high_g_x, acc_high_g_y, acc_high_g_z = adxl375.read_accel_data()
       
     except Exception as err:
         if debug:

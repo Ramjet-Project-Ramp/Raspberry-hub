@@ -1,5 +1,5 @@
 class BinaryFile:
-    pressureSensorDataSize = const(3) #[Bytes]
+    pressureSensorDataSize = const(6) #[Bytes]
     thermistorSensorDataSize = const(2) #[Bytes]
     lowGAccelomiterDataSize = const(6) #[Bytes]
     lowGGyroDataSize = const(6) #[Bytes]
@@ -8,7 +8,7 @@ class BinaryFile:
     timeDataSize = const(4) #[Bytes]
     
     def __init__(self, sd = "/sd", numberOfPressurreSensors, numberOfThermistorSensors):
-        self.pressureDataBlockSize = pressureSensorDataSize*2*numberOfPressurreSensors + timeDataSize
+        self.pressureDataBlockSize = pressureSensorDataSize*numberOfPressurreSensors + timeDataSize
         self.thermisorDataBlockSize = thermistorSensorDataSize*numberOfThermistorSensors + timeDataSize
         self.acceleromiterDataSize = lowGAccelomiterDataSize+lowGGyroDataSize+lowGMagnetoDataSize+highGAccelomiterDataSize + timeDataSize
         
@@ -32,11 +32,9 @@ class BinaryFile:
         self.file.flush()
         
     # PRESSURE SENSOR
-    def addPressureData(self, id, pressure:bytearray, temperature:bytearray):
-        pressurePosition = id*2*pressureSensorDataSize-1 + timeDataSize
-        self.pressureDataBlock[pressurePosition:pressurePosition+pressureSensorDataSize] = pressure
-        temperaturePosition = id*2*pressureSensorDataSize + timeDataSize
-        self.pressureDataBlock[temperaturePosition:temperaturePosition+pressureSensorDataSize] = temperature
+    def addPressureData(self, id, data:bytearray):
+        position = (id-1)*pressureSensorDataSize + timeDataSize
+        self.pressureDataBlock[position:position+pressureSensorDataSize] = data
         
     def savePressureData(self, time:int):
         self.pressureDataBlock[1:1+timeDataSize] = bytearray(time.to_bytes(timeDataSize, byteorder='big'))
