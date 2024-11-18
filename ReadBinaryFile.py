@@ -7,7 +7,7 @@ class ReadBinaryFile:
     lowGGyroDataSize = const(6) #[Bytes]
     lowGMagnetoDataSize = const(8) #[Bytes]
     highGAccelomiterDataSize = const(6) #[Bytes]
-    timeDataSize = const(4) #[Bytes]
+    timeDataSize = const(7) #[Bytes]
     
     def __init__(self, numberOfPressurreSensors, numberOfThermistorSensors):
         self.numberOfPressurreSensors = numberOfPressurreSensors

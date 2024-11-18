@@ -11,8 +11,6 @@
 from machine import Pin, SPI, PWM, I2C
 from Hub import Hub
 from MCP2515 import MCP2515
-from ADXL375_High_G import ADXL375_I2C
-from BMX160_Low_G import BMX160
 from SpiPressureSensor import SpiPressureSensor
 from PressureSensorsInHub import PressureSensorsInHub
 from Thermistor import Thermistor
@@ -69,10 +67,13 @@ pressure_sensor_sampling_rate = 20 # [Hz]
 thermistor_sampling_rate = 0.0020 # [Hz]
 accelerometer_sampling_rate = 0.00100 # [Hz]
 
-#startTime = const(time.time_ns())
+startTime = const(time.time_ns())
 lastPressureSensorMeasurmentTime = time.time_ns()
 lastThermistorMeasurmentTime = time.time_ns()
 lastAccelerometerMeasurmentTime = time.time_ns()
+
+def getTimeToSaveToFile(time:int):
+    return  time - startTime
 
 # *****************GET THERMISTORS DATA*****************
 def getThermistorData(can, canId, sensorNumber):
@@ -84,16 +85,6 @@ def getThermistorData(can, canId, sensorNumber):
     message = waitForCanMessage()
         
     return message
-
-# *****************HIGH G ACCELEROMETER*****************
-i2c = I2C(0, scl=Pin(21), sda=Pin(20), freq=400000)
-
-adxl375 = ADXL375_I2C(i2c)
-
-# *****************LOW G ACCELEROMETER*****************
-i2c_low_g = I2C(1, scl=Pin(19), sda=Pin(18), freq=400000)
-bmx160 = BMX160(i2c_low_g)
-trim_data = bmx160.trim_data
 
 # *****************PRESSURE SENSORS*****************
 spi_pressure_sensor = machine.SPI(0, baudrate=800000, polarity=0, phase=0,
@@ -192,7 +183,7 @@ while(True):
                         
                         file.addPressureData(id=sensor_id, data = data[1:1+pressureSensorDataSize])      
             
-            file.savePressureData(time=lastPressureSensorMeasurmentTime)
+            file.savePressureData(time=getTimeToSaveToFile(lastPressureSensorMeasurmentTime))
         
                     
         # THERMISTOR MEASUREMNT-----------------------------------------------------------------
@@ -217,7 +208,7 @@ while(True):
                         file.addThermistorData(id=sensor_id, temprature=data[1:1+thermistorSensorDataSize])
                   
             # SAVING DATA TO FILE      
-            file.saveThermistorData(time=lastThermistorMeasurmentTime)
+            file.saveThermistorData(time=getTimeToSaveToFile(lastThermistorMeasurmentTime))
                         
                         
         # ACCELEROMETER MEASUREMNT-----------------------------------------------------------------
@@ -228,35 +219,46 @@ while(True):
             # READ LOW G ACCELEROMETER READING
             can.ReadMessage() # CLEAN BUFFER
             can.Send(45, [1])
-            lowG_accelerometer_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            message = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            
+            # CHECK LOW G ACCELEROMETER READING
+            if message != None and message.id == 4 and message.data[0] != 0 and len(message.data) == 6:
+                data = message.data
+                file.addLowGAcceleromiterData(low_G_acceleration = data):
             
             # READ LOW G GYRO READING
             can.ReadMessage() # CLEAN BUFFER
             can.Send(45, [2])
-            lowG_gyro_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            message = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            
+            # CHECK LOW G GYRO READING
+            if message != None and message.id == 4 and message.data[0] != 0 and len(message.data) == 6:
+                data = message.data
+                file.addLowGGyroData(low_G_gyro = data):
             
             # READ LOW G MAGNETO READING
             can.ReadMessage() # CLEAN BUFFER
             can.Send(45, [3])
-            lowG_mag_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
-           
+            message = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
+            
+            # CHECK LOW G MAGNETO READING
+            if message != None and message.id == 4 and message.data[0] != 0 and len(message.data) == 6:
+                data = message.data
+                file.addLowGMagnetoData(low_G_magnetometer = data):
+            
             # READ HIGH G ACCELEROMETER READING
             can.ReadMessage() # CLEAN BUFFER
             can.Send(45, [4])
-            highG_accelerometer_data = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
-           
-           
-           file.addAcceleromiterData(low_G_acceleration=lowG_accelerometer_data,
-                                     low_G_gyro=lowG_gyro_data,
-                                     low_G_magnetometer=lowG_mag_data,
-                                     high_G_acceleration=highG_accelerometer_data)
-           
-           file.saveAccelerometerData(time=lastAccelerometerMeasurmentTime)
-            #acc_low_g_x, acc_low_g_y, acc_low_g_z = bmx160.read_accel_data()        
-            #gyr_low_g_x, gyr_low_g_y, gyr_low_g_z = bmx160.read_gyro_data()
-            #mag_low_g_x, mag_low_g_y, mag_low_g_z, r_hall_low_g = bmx160.read_mag_data()
+            message = waitForCanMessage() # WAIT FOR READING MESSAGE TO ARIVE
             
-            #acc_high_g_x, acc_high_g_y, acc_high_g_z = adxl375.read_accel_data()
+            # CHECK LOW G MAGNETO READING
+            if message != None and message.id == 4 and message.data[0] != 0 and len(message.data) == 6:
+                data = message.data
+                file.addHighGAcceleromiterData(high_G_acceleration = data):
+  
+           
+           file.saveAccelerometerData(time=getTimeToSaveToFile(lastAccelerometerMeasurmentTime))   
+            
       
     except Exception as err:
         if debug:

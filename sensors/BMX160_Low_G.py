@@ -171,6 +171,11 @@ class BMX160:
         if data[5] & 0x80: 
             acc_z -= 0x10000
         return acc_x, acc_y, acc_z
+    
+    # Function to read accelerometer data for all axes
+    def read_accel_data_binary(self):
+        data = self.i2c.readfrom_mem(BMX160_ADDRESS, ACC_DATA_REG, 6)  # Read 6 bytes of accelerometer data starting from 0x12
+        return data
 
     # Function to read gyroscope data for all axes
     def read_gyro_data(self):
@@ -186,6 +191,11 @@ class BMX160:
         if data[5] & 0x80:
             gyr_z -= 0x10000
         return gyr_x, gyr_y, gyr_z
+    
+    # Function to read gyroscope data for all axes
+    def read_gyro_data_binary(self):
+        data = self.i2c.readfrom_mem(BMX160_ADDRESS, GYR_DATA_REG, 6)  # Read 6 bytes of gyroscope data starting from 0x0C
+        return data
 
     # Function to read magnetometer data for all axes
     def read_mag_data(self):
@@ -202,6 +212,11 @@ class BMX160:
         if data[5] & 0x80:
             mag_z -= 0x10000
         return mag_x, mag_y, mag_z, r_hall
+    
+    # Function to read magnetometer data for all axes
+    def read_mag_data_binary(self):
+        data = self.i2c.readfrom_mem(BMX160_ADDRESS, MAG_DATA_REG, 8)  # Read 6 bytes of magnetometer data starting from 0x04
+        return data
 
     # Initialize BMX160 accelerometer
     def init_bmx160_accel(self):

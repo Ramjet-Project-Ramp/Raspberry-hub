@@ -23,3 +23,8 @@ class ADXL375_I2C:
         data = self.i2c.readfrom_mem(ADXL375_ADDRESS, ADXL375_DATAX0, 6)
         x, y, z = ustruct.unpack('<3h', data)
         return x, y, z
+    
+    # Read acceleration data
+    def read_accel_data_binary(self):
+        data = self.i2c.readfrom_mem(ADXL375_ADDRESS, ADXL375_DATAX0, 6)
+        return data

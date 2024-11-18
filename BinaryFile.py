@@ -5,7 +5,7 @@ class BinaryFile:
     lowGGyroDataSize = const(6) #[Bytes]
     lowGMagnetoDataSize = const(8) #[Bytes]
     highGAccelomiterDataSize = const(6) #[Bytes]
-    timeDataSize = const(4) #[Bytes]
+    timeDataSize = const(7) #[Bytes]
     
     def __init__(self, sd = "/sd", numberOfPressurreSensors, numberOfThermistorSensors):
         self.pressureDataBlockSize = pressureSensorDataSize*numberOfPressurreSensors + timeDataSize
@@ -53,21 +53,24 @@ class BinaryFile:
         self.thermistorDataBlock[:] = [0]*self.thermisorDataBlockSize
         
     # ACCELEROMETER    
-    def addAcceleromiterData(self, low_G_acceleration:bytearray, low_G_gyro:bytearray, low_G_magnetometer:bytearray, high_G_acceleration:bytearray):
+    def addLowGAcceleromiterData(self, low_G_acceleration:bytearray):
         start = 1 + timeDataSize
         end = start+lowGAccelomiterDataSize
         self.acceleromiterDataBlok[start:end] = low_G_acceleration
-        
-        start = end
-        end += lowGGyroDataSize
+    
+    def addLowGGyroData(self, low_G_gyro:bytearray):
+        start = 1 + timeDataSize + lowGAccelomiterDataSize
+        end = start + lowGGyroDataSize
         self.acceleromiterDataBlok[start:end] = low_G_gyro
         
-        start = end
-        end += lowGMagnetoDataSize
+    def addLowGMagnetoData(self, low_G_magnetometer:bytearray):     
+        start = 1 + timeDataSize + lowGAccelomiterDataSize + lowGGyroDataSize
+        end =start + lowGMagnetoDataSize
         self.acceleromiterDataBlok[start:end] = low_G_magnetometer
-        
-        start = end
-        end += highGAccelomiterDataSize
+    
+    def addHighGAcceleromiterData(self, high_G_acceleration:bytearray):
+        start = 1 + timeDataSize + lowGAccelomiterDataSize + lowGGyroDataSize + lowGMagnetoDataSize
+        end =start + highGAccelomiterDataSize
         self.acceleromiterDataBlok[start:end] = high_G_acceleration
         
     def saveAccelerometerData(self, time:int):

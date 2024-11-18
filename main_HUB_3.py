@@ -1,9 +1,20 @@
+#################################
+#  _    _ _    _ ____    ____   #
+# | |  | | |  | |  _ \  |___ \  #
+# | |__| | |  | | |_) |   __) | #
+# |  __  | |  | |  _ <   |__ <  #
+# | |  | | |__| | |_) |  ___) | #
+# |_|  |_|\____/|____/  |____/  #
+#################################                       
+                             
+
 from machine import Pin,SPI
 import time
 from MCP2515 import MCP2515
 from SpiPressureSensor import SpiPressureSensor
 from PressureSensorsInHub import PressureSensorsInHub
 from Thermistor import Thermistor
+import sys
 
 # *****************DEBUG MODE*****************
 debug = True 
@@ -24,26 +35,43 @@ time.sleep(1)
 led_pin(1)
 
 # *****************CAN*****************
-spi_can = SPI(0,baudrate=1000000,polarity=0, phase=0,sck=Pin(6),mosi=Pin(7),miso=Pin(4))
-can = MCP2515(spi_can, cs_pin = 8)
+spi_can = SPI(1,baudrate=1000000,polarity=0, phase=0,
+              sck=Pin(10),
+              mosi=Pin(11),
+              miso=Pin(12))
+can = MCP2515(spi_can, cs_pin = 13)
 
 can.Init(speed="500KBPS")
 
 # *****************PRESSURE SENSORS SET UP*****************
 spi_pressure_sensor = machine.SPI(0, baudrate=800000, polarity=0, phase=0,
-                  sck=Pin(18),
-                  mosi=Pin(19),
-                  miso=Pin(16))
+                  sck=Pin(2),
+                  mosi=Pin(3),
+                  miso=Pin(4))
 
-paSensor = SpiPressureSensor(id=12, cs_pin=21) # Out Tank A1
-pSensor1 = SpiPressureSensor(id=13, cs_pin=17) # In Tank G1
-pSensor2 = SpiPressureSensor(id=14, cs_pin=20) # In Tank G2
+pressureSensors = []
+pressureSensors.append(SpiPressureSensor(id=19, cs_pin=9)) 
+pressureSensors.append(SpiPressureSensor(id=20, cs_pin=8)) 
+pressureSensors.append(SpiPressureSensor(id=21, cs_pin=7))
+pressureSensors.append(SpiPressureSensor(id=22, cs_pin=6))
+pressureSensors.append(SpiPressureSensor(id=23, cs_pin=5))
+pressureSensors.append(SpiPressureSensor(id=24, cs_pin=1))
+pressureSensors.append(SpiPressureSensor(id=25, cs_pin=0))
+pressureSensors.append(SpiPressureSensor(id=26, cs_pin=18))
+pressureSensors.append(SpiPressureSensor(id=27, cs_pin=19))
+pressureSensors.append(SpiPressureSensor(id=33, cs_pin=20))
+pressureSensors.append(SpiPressureSensor(id=34, cs_pin=21))
+pressureSensors.append(SpiPressureSensor(id=35, cs_pin=22)) 
 
-pressureSensorsInHub = PressureSensorsInHub(spi_pressure_sensor, pressureSensors=[paSensor, pSensor1, pSensor2])
+pressureSensorsInHub = PressureSensorsInHub(spi_pressure_sensor, pressureSensors)
 
 # *****************THERMISTOR SENSORS SET UP*****************
-thermistor1 = Thermistor(id=3, adc_pin=28)
-thermistors = [thermistor1]
+thermistors = []
+thermistors.append(Thermistor(id=10, adc_pin=26))
+thermistors.append(Thermistor(id=11, adc_pin=27))
+thermistors.append(Thermistor(id=12, adc_pin=28))
+thermistors.append(Thermistor(id=13, adc_pin=4))
+
 thermistors_length = len(thermistors)
 
 # *****************SPLIT INTO ARRAY OF BYTES*****************
@@ -73,21 +101,18 @@ while(True):
         elif message.id == 33: # Get thermistor adc reading
             if message.data[0] < thermistors_length and message.data[0] >= 0:
                 thermistor = thermistors[message.data[0]]
-                adc_value = thermistor.readAdc
+                adc_value = thermistor.readAdc()
                 data = split_number_into_bytes(adc_value, 2)
                 data.insert(0, thermistor.id) # add thermistor id at the beginning
                 can.Send(3,  data)
             else:
                 can.Send(3, [0])
-            
-        elif message.id == 34: # Get Raspberry Pi Pico built-in thermistor adc reading
-            adc_value = machine.ADC(4).read_u16()
-            data = split_number_into_bytes(adc_value, 2)
-            can.Send(4,  data)
         
-    except:
+        
+    except Exception as err:
         if debug:
             print("Errror")
+            sys.print_exception(err)
             led_pin(0)
             time.sleep(0.05)
             led_pin(1)
@@ -95,6 +120,7 @@ while(True):
             led_pin(0)
             time.sleep(0.05)
             led_pin(1) 
+
 
 
 
